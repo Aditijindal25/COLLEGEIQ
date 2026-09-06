@@ -1,0 +1,11 @@
+ALTER TABLE "College"
+  ADD COLUMN "pgFees" INTEGER,
+  ADD COLUMN "academicScore" DOUBLE PRECISION,
+  ADD COLUMN "accommodationScore" DOUBLE PRECISION,
+  ADD COLUMN "facultyScore" DOUBLE PRECISION,
+  ADD COLUMN "infrastructureScore" DOUBLE PRECISION,
+  ADD COLUMN "placementScore" DOUBLE PRECISION,
+  ADD COLUMN "socialLifeScore" DOUBLE PRECISION,
+  ADD COLUMN "nirfRank" INTEGER,
+  ADD COLUMN "nirfScore" DOUBLE PRECISION,
+  ADD COLUMN "dataSource" TEXT;

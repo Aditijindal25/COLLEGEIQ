@@ -1,0 +1,82 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model College {
+  id             Int          @id @default(autoincrement())
+  name           String
+  location       String
+  state          String
+  fees           Int
+  pgFees         Int?
+  rating         Float
+  placement      Float
+  academicScore  Float?
+  accommodationScore Float?
+  facultyScore   Float?
+  infrastructureScore Float?
+  placementScore Float?
+  socialLifeScore Float?
+  nirfRank       Int?
+  nirfScore      Float?
+  dataSource     String?
+  description    String
+  website        String?
+  courses        Course[]
+  reviews        Review[]
+  savedBy        SavedCollege[]
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([name])
+  @@index([location])
+  @@index([fees])
+  @@index([rating])
+}
+
+model Course {
+  id          Int      @id @default(autoincrement())
+  name        String
+  duration    String
+  degree      String
+  collegeId   Int
+  college     College  @relation(fields: [collegeId], references: [id], onDelete: Cascade)
+}
+
+model Review {
+  id          Int      @id @default(autoincrement())
+  rating      Int
+  comment     String
+  author      String
+  collegeId   Int
+  college     College  @relation(fields: [collegeId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+}
+
+
+model User {
+  id            Int            @id @default(autoincrement())
+  name          String
+  email         String         @unique
+  password      String
+  savedColleges SavedCollege[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+}
+
+
+
+model SavedCollege {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  collegeId Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  college   College  @relation(fields: [collegeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, collegeId])
+}

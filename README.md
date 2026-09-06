@@ -18,6 +18,14 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
+## Import standardized college data
+
+The Prisma importer accepts the standardized CollegeIQ CSV format and creates or updates matching colleges without changing the schema:
+
+```bash
+npm run import:colleges -- "C:\Users\HP\Downloads\CollegeIQ_Standardized_Colleges.csv"
+```
+
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
 ## Learn More
