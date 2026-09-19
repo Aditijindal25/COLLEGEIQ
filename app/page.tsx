@@ -190,181 +190,458 @@ export default function Home() {
       {/* HERO */}
       {/* ================================================= */}
 
-      <section className="dashboard-hero relative overflow-hidden px-5 pb-14 pt-8 sm:px-6 sm:pt-10">
-        <div className="relative mx-auto max-w-7xl">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <span className="site-mark flex h-10 w-10 items-center justify-center rounded-xl text-lg font-bold text-white">C</span>
-            </div>
-            <div className="hidden items-center gap-6 md:flex">
-              <Link href="/colleges" className="site-nav-link text-[13px]">Discover</Link>
-              <Link href="/rankings" className="site-nav-link text-[13px]">Rankings</Link>
-              <Link href="/compare" className="site-nav-link text-[13px]">Compare</Link>
-              <Link href="/predictor" className="site-nav-link text-[13px]">Predictor</Link>
-              <button type="button" className="theme-toggle" aria-label="Switch to light mode">
-                Light mode
+      <section className="dashboard-hero relative overflow-hidden px-5 pb-20 pt-16 sm:px-6 sm:pt-24">
+
+
+        <div className="relative mx-auto max-w-5xl text-center">
+
+          {/* Badge */}
+
+          <div className="dashboard-signal mb-7 inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-900 px-4 py-2 text-sm font-medium text-slate-300 shadow-sm">
+
+            <span className="h-2 w-2 rounded-full bg-emerald-400" />
+
+            Make a smarter college decision
+
+          </div>
+
+
+          {/* Heading */}
+
+          <h2 className="mx-auto max-w-4xl text-4xl font-bold leading-[1.05] tracking-tight sm:text-6xl">
+
+            Find the college
+
+            <span className="dashboard-title-accent block text-slate-400">
+              that&apos;s right for you.
+            </span>
+
+          </h2>
+
+
+          {/* Description */}
+
+          <p className="mx-auto mt-6 max-w-2xl text-base leading-7 text-slate-300 sm:text-lg">
+            Discover colleges, compare fees and placements,
+            explore courses, and find recommendations based on
+            your goals.
+          </p>
+
+
+          {/* ================= SEARCH ================= */}
+
+          <div className="mx-auto mt-10 max-w-3xl">
+
+            <div className="dashboard-search flex flex-col gap-2 rounded-2xl bg-white p-2 shadow-2xl sm:flex-row">
+
+              <div className="flex flex-1 items-center">
+
+                <span className="pl-4 text-xl text-slate-400">
+                  🔎
+                </span>
+
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) =>
+                    setSearch(e.target.value)
+                  }
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      handleSearch();
+                    }
+                  }}
+                  placeholder="Search colleges, cities or courses..."
+                  className="w-full rounded-xl px-4 py-4 text-base text-slate-900 outline-none placeholder:text-slate-400"
+                />
+
+              </div>
+
+
+              <button
+                id="college-search-button"
+                onClick={handleSearch}
+                disabled={loading}
+                className="dashboard-action rounded-xl bg-slate-950 px-7 py-4 text-sm font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                {loading
+                  ? "Searching..."
+                  : "Search Colleges"}
               </button>
-              <Link href="/auth" className="site-primary-button">Sign In</Link>
+
             </div>
+
+
+            {/* ================= POPULAR SEARCHES ================= */}
+
+            <div className="mt-5 flex flex-wrap items-center justify-center gap-2 text-sm">
+
+              <span className="mr-1 text-slate-500">
+                Popular:
+              </span>
+
+              {[
+                "IIT Delhi",
+                "IIT Bombay",
+                "IIT Madras",
+                "NIT Trichy",
+              ].map((college) => (
+
+                <button
+                  key={college}
+                  onClick={() =>
+                    handlePopularSearch(college)
+                  }
+                  className="rounded-full border border-slate-700 bg-slate-900 px-3 py-1.5 text-slate-300 transition hover:border-slate-500 hover:bg-slate-800 hover:text-white"
+                >
+                  {college}
+                </button>
+
+              ))}
+
+            </div>
+
           </div>
 
-          <div className="mt-10 grid items-start gap-8 lg:grid-cols-[1.05fr_1.45fr]">
-            <div className="pt-2">
-              <h2 className="text-[4.4rem] font-black leading-[0.84] tracking-[-0.07em] text-white sm:text-[6.2rem]">
-                clarity.
-              </h2>
 
-              <p className="mt-8 max-w-[34rem] text-2xl leading-[1.5] text-slate-200">
-                Choosing a college is a major decision. CollegeIQ brings important information together so you can spend less time searching and more time making the right choice.
-              </p>
-            </div>
+          {/* ================================================= */}
+          {/* SEARCH RESULTS */}
+          {/* ================================================= */}
 
-            <div className="grid gap-5 md:grid-cols-2">
-              <div className="dashboard-hero-card min-h-[200px] rounded-[26px] p-6">
-                <span className="dashboard-hero-number">03</span>
-                <h3 className="mt-8 text-3xl font-semibold text-slate-900">Smarter Discovery</h3>
-                <p className="mt-4 text-base leading-7 text-slate-700">
-                  Find colleges based on your interests and goals.
-                </p>
+          {searched && !loading && (
+
+            <div className="mx-auto mt-10 max-w-3xl text-left">
+
+              <div className="mb-5 flex items-center justify-between">
+
+                <div>
+
+                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                    Search
+                  </p>
+
+                  <h3 className="mt-1 text-2xl font-bold text-white">
+                    Search Results
+                  </h3>
+
+                </div>
+
+
+                <span className="rounded-full bg-slate-800 px-3 py-1 text-sm text-slate-300">
+                  {results.length} found
+                </span>
+
               </div>
 
-              <div className="dashboard-hero-card min-h-[200px] rounded-[26px] p-6">
-                <span className="dashboard-hero-number">04</span>
-                <h3 className="mt-8 text-3xl font-semibold text-slate-900">Better Decisions</h3>
-                <p className="mt-4 text-base leading-7 text-slate-700">
-                  Turn scattered information into a clearer decision.
-                </p>
-              </div>
+
+              {results.length > 0 ? (
+
+                <div className="space-y-4">
+
+                  {results.map((college) => (
+
+                    <Link
+                      key={college.id}
+                      href={`/colleges/${college.id}`}
+                      className="group block rounded-2xl border border-slate-200 bg-white p-5 text-slate-900 shadow-lg transition duration-200 hover:-translate-y-1 hover:shadow-2xl"
+                    >
+
+                      <div className="flex items-start justify-between gap-4">
+
+                        <div>
+
+                          <h4 className="text-xl font-bold text-slate-950">
+                            {college.name}
+                          </h4>
+
+                          <p className="mt-1 text-sm text-slate-500">
+                            📍 {getCollegeLocation(college.location, college.state)}
+                          </p>
+
+                        </div>
+
+
+                        <span className="rounded-lg bg-slate-100 px-3 py-1 text-sm font-bold text-slate-700">
+                          ★ {formatRating(college.rating)}
+                        </span>
+
+                      </div>
+
+
+                      <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
+
+                        <div className="rounded-xl bg-slate-50 p-3">
+
+                          <p className="text-xs text-slate-500">
+                            Fees
+                          </p>
+
+                          <p className="mt-1 font-bold text-slate-900">
+                            {formatCurrency(college.fees)}
+                          </p>
+
+                        </div>
+
+
+                        <div className="rounded-xl bg-slate-50 p-3">
+
+                          <p className="text-xs text-slate-500">
+                            Placement
+                          </p>
+
+                          <p className="mt-1 font-bold text-slate-900">
+                            {getPlacementLabel(college.placement)}
+                          </p>
+
+                        </div>
+
+
+                        <div className="col-span-2 rounded-xl bg-slate-50 p-3 sm:col-span-1">
+
+                          <p className="text-xs text-slate-500">
+                            Programs
+                          </p>
+
+                          <p className="mt-1 font-bold text-slate-900">
+                            {college.courses?.length || 0}
+                          </p>
+
+                        </div>
+
+                      </div>
+
+
+                      <div className="mt-4 flex items-center justify-between">
+
+                        <span className="text-sm font-semibold text-slate-500">
+                          View college details
+                        </span>
+
+                        <span className="font-bold transition group-hover:translate-x-1">
+                          →
+                        </span>
+
+                      </div>
+
+                    </Link>
+
+                  ))}
+
+                </div>
+
+              ) : (
+
+                <div className="rounded-2xl border border-slate-800 bg-slate-900 p-8 text-center">
+
+                  <div className="text-4xl">
+                    🔍
+                  </div>
+
+                  <h4 className="mt-4 text-xl font-bold text-white">
+                    No colleges found
+                  </h4>
+
+                  <p className="mt-2 text-sm text-slate-400">
+                    Try searching for another college,
+                    city, state, or course.
+                  </p>
+
+                </div>
+
+              )}
+
             </div>
+
+          )}
+
+        </div>
+
+      </section>
+
+      <section className="home-proof px-5 py-7 sm:px-6">
+        <div className="mx-auto grid max-w-7xl gap-6 sm:grid-cols-3 sm:gap-0">
+          <div className="home-proof-item px-0 sm:px-7 first:sm:pl-0">
+            <p className="home-proof-value text-3xl font-bold">700+</p>
+            <p className="mt-1 text-sm text-white/60">Colleges ready to explore</p>
+          </div>
+          <div className="home-proof-item px-0 sm:px-7">
+            <p className="home-proof-value text-3xl font-bold">3-way</p>
+            <p className="mt-1 text-sm text-white/60">Comparison for real trade-offs</p>
+          </div>
+          <div className="home-proof-item px-0 sm:px-7 sm:last:pr-0">
+            <p className="home-proof-value text-3xl font-bold">1 clear path</p>
+            <p className="mt-1 text-sm text-white/60">From curiosity to shortlist</p>
           </div>
         </div>
       </section>
 
-      <section className="dashboard-cta px-5 py-12 sm:px-6">
-        <div className="mx-auto max-w-5xl text-center">
-          <p className="text-xs font-bold uppercase tracking-[0.25em] text-slate-700">
-            Your college journey starts here
-          </p>
 
-          <h3 className="mt-4 text-[3.2rem] font-bold tracking-[-0.06em] text-slate-900 sm:text-[6.5rem] sm:leading-[0.9]">
-            Ready to find your college?
-          </h3>
+      {featured.length > 0 && (
+        <section className="px-5 py-16 sm:px-6">
+          <div className="mx-auto max-w-7xl">
+            <div className="flex flex-wrap items-end justify-between gap-4">
+              <div><p className="text-sm font-bold uppercase tracking-[0.2em] text-[var(--accent)]">A considered starting point</p><h3 className="mt-3 text-3xl font-bold tracking-tight text-[var(--text-primary)] sm:text-4xl">Explore top colleges.</h3></div>
+              <Link href="/colleges" className="font-bold text-[var(--primary)] hover:text-[var(--primary-dark)]">View the directory →</Link>
+            </div>
+            <div className="mt-8 grid gap-6 lg:grid-cols-3">{featured.map((college) => <CollegeCard key={college.id} college={college} />)}</div>
+          </div>
+        </section>
+      )}
 
-          <p className="mx-auto mt-5 max-w-3xl text-xl leading-8 text-slate-700">
-            Explore your options, compare colleges, and make your next decision with confidence.
-          </p>
+      <DecisionPath />
 
-          <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
-            <Link href="/colleges" className="dashboard-cta-primary rounded-xl px-8 py-4 text-lg font-bold text-white">
-              Explore Colleges
+      {/* ================================================= */}
+      {/* EXPLORE */}
+      {/* ================================================= */}
+
+      <section className="px-5 py-20 sm:px-6">
+
+        <div className="mx-auto max-w-7xl">
+
+          <div className="max-w-2xl">
+
+            <p className="text-sm font-bold uppercase tracking-[0.2em] text-slate-500">
+              Explore
+            </p>
+
+            <h3 className="mt-3 text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl">
+              Everything you need to choose better.
+            </h3>
+
+            <p className="mt-4 text-base leading-7 text-slate-600">
+              One place to discover colleges, compare your
+              options, and understand which institutions fit
+              your goals.
+            </p>
+
+          </div>
+
+
+          <div className="mt-10 grid gap-6 md:grid-cols-3">
+
+            {/* DISCOVER */}
+
+            <Link
+              href="/colleges"
+              className="group rounded-3xl border border-slate-200 bg-white p-7 shadow-sm transition duration-300 hover:-translate-y-2 hover:border-slate-300 hover:shadow-xl"
+            >
+
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-2xl">
+                🔎
+              </div>
+
+              <h4 className="mt-7 text-xl font-bold text-slate-950">
+                Discover Colleges
+              </h4>
+
+              <p className="mt-3 leading-7 text-slate-600">
+                Search colleges by location, fees, ratings,
+                courses, placements, and more.
+              </p>
+
+              <div className="mt-7 flex items-center gap-2 text-sm font-bold text-slate-950">
+                Explore colleges
+
+                <span className="transition group-hover:translate-x-1">
+                  →
+                </span>
+
+              </div>
+
             </Link>
-            <Link href="/predictor" className="dashboard-cta-secondary rounded-xl px-8 py-4 text-lg font-bold text-slate-900">
-              Try College Predictor
+
+
+            {/* COMPARE */}
+
+            <Link
+              href="/compare"
+              className="group rounded-3xl border border-slate-200 bg-white p-7 shadow-sm transition duration-300 hover:-translate-y-2 hover:border-slate-300 hover:shadow-xl"
+            >
+
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-2xl">
+                ⚖️
+              </div>
+
+              <h4 className="mt-7 text-xl font-bold text-slate-950">
+                Compare Colleges
+              </h4>
+
+              <p className="mt-3 leading-7 text-slate-600">
+                Put 2–3 colleges side by side and compare the
+                factors that matter most.
+              </p>
+
+              <div className="mt-7 flex items-center gap-2 text-sm font-bold text-slate-950">
+                Start comparing
+
+                <span className="transition group-hover:translate-x-1">
+                  →
+                </span>
+
+              </div>
+
             </Link>
+
+
+            {/* PREDICTOR */}
+
+            <Link
+              href="/predictor"
+              className="group rounded-3xl border border-slate-200 bg-white p-7 shadow-sm transition duration-300 hover:-translate-y-2 hover:border-slate-300 hover:shadow-xl"
+            >
+
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-2xl">
+                🎯
+              </div>
+
+              <h4 className="mt-7 text-xl font-bold text-slate-950">
+                College Predictor
+              </h4>
+
+              <p className="mt-3 leading-7 text-slate-600">
+                Enter your exam and rank to discover colleges
+                that match your profile.
+              </p>
+
+              <div className="mt-7 flex items-center gap-2 text-sm font-bold text-slate-950">
+                Predict colleges
+
+                <span className="transition group-hover:translate-x-1">
+                  →
+                </span>
+
+              </div>
+
+            </Link>
+
           </div>
+
         </div>
+
       </section>
 
-      <section className="bg-[#123b37] px-5 py-10 sm:px-6">
-        <div className="mx-auto max-w-6xl">
-          <p className="text-xs font-bold uppercase tracking-[0.25em] text-[#f6a65f]">
-            The CollegeIQ Method
-          </p>
-
-          <h3 className="mt-4 text-2xl font-bold tracking-tight text-white sm:text-3xl">
-            Move from a broad search to a confident shortlist in four focused steps.
-          </h3>
-
-          <div className="mt-6 grid gap-4 grid-cols-1 md:grid-cols-2 xl:grid-cols-4">
-            <div className="h-full rounded-2xl border border-white/15 bg-white/5 p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]">
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-xl font-bold text-[#f6a65f]">01</span>
-                <span aria-hidden="true" className="text-lg text-white/70">→</span>
-              </div>
-
-              <h4 className="mt-6 text-2xl font-bold text-white">Discover</h4>
-              <p className="mt-3 text-sm leading-6 text-slate-200">
-                Find colleges that fit your goals.
-              </p>
-
-              <Link href="/colleges" className="mt-4 inline-block text-sm font-bold text-[#f6a65f] transition hover:text-[#f8c28c]">
-                Start here →
-              </Link>
-            </div>
-
-            <div className="h-full rounded-2xl border border-white/15 bg-white/5 p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]">
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-xl font-bold text-[#f6a65f]">02</span>
-                <span aria-hidden="true" className="text-lg text-white/70">→</span>
-              </div>
-
-              <h4 className="mt-6 text-2xl font-bold text-white">Shortlist</h4>
-              <p className="mt-3 text-sm leading-6 text-slate-200">
-                Save the options worth a closer look.
-              </p>
-
-              <Link href="/colleges" className="mt-4 inline-block text-sm font-bold text-[#f6a65f] transition hover:text-[#f8c28c]">
-                Start here →
-              </Link>
-            </div>
-
-            <div className="h-full rounded-2xl border border-white/15 bg-white/5 p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]">
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-xl font-bold text-[#f6a65f]">03</span>
-                <span aria-hidden="true" className="text-lg text-white/70">→</span>
-              </div>
-
-              <h4 className="mt-6 text-2xl font-bold text-white">Compare</h4>
-              <p className="mt-3 text-sm leading-6 text-slate-200">
-                See the trade-offs side by side.
-              </p>
-
-              <Link href="/compare" className="mt-4 inline-block text-sm font-bold text-[#f6a65f] transition hover:text-[#f8c28c]">
-                Start here →
-              </Link>
-            </div>
-
-            <div className="h-full rounded-2xl border border-white/15 bg-white/5 p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]">
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-xl font-bold text-[#f6a65f]">04</span>
-                <span aria-hidden="true" className="text-lg text-white/70">→</span>
-              </div>
-
-              <h4 className="mt-6 text-2xl font-bold text-white">Predict</h4>
-              <p className="mt-3 text-sm leading-6 text-slate-200">
-                Turn your rank into a realistic starting point.
-              </p>
-
-              <Link href="/predictor" className="mt-4 inline-block text-sm font-bold text-[#f6a65f] transition hover:text-[#f8c28c]">
-                Start here →
-              </Link>
-            </div>
-          </div>
-        </div>
-      </section>
 
       {/* ================================================= */}
       {/* WHY COLLEGEIQ */}
       {/* ================================================= */}
 
-      <section className="border-y border-slate-200 bg-white px-5 py-10 sm:px-6">
+      <section className="border-y border-slate-200 bg-white px-5 py-20 sm:px-6">
 
         <div className="mx-auto max-w-6xl">
 
-          <div className="grid items-center gap-6 lg:grid-cols-[1.1fr_1.9fr]">
+          <div className="grid items-center gap-12 lg:grid-cols-2">
 
             <div>
 
-              <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-700">
+              <p className="text-sm font-bold uppercase tracking-[0.2em] text-slate-500">
                 Why CollegeIQ
               </p>
 
-              <h3 className="mt-3 text-4xl font-bold tracking-[-0.04em] text-slate-950 sm:text-[4rem] sm:leading-[0.95]">
-                Make decisions
-                <span className="block">with more clarity.</span>
+              <h3 className="mt-3 text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl">
+                Make decisions with more clarity.
               </h3>
 
-              <p className="mt-5 max-w-xl text-base leading-7 text-slate-700">
+              <p className="mt-5 max-w-xl leading-7 text-slate-600">
                 Choosing a college is a major decision.
                 CollegeIQ brings important information together
                 so you can spend less time searching and more
@@ -374,21 +651,21 @@ export default function Home() {
             </div>
 
 
-            <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="grid gap-4 sm:grid-cols-2">
 
               {/* 01 */}
 
-              <div className="min-h-[170px] rounded-[20px] bg-[#dfeae7] p-4 text-slate-900 shadow-sm">
+              <div className="rounded-2xl bg-slate-50 p-6">
 
-                <p className="text-[2rem] font-bold leading-none text-slate-950">
+                <p className="text-2xl font-bold text-slate-950">
                   01
                 </p>
 
-                <h4 className="mt-4 text-[1.05rem] font-bold text-slate-950">
+                <h4 className="mt-4 font-bold text-slate-950">
                   Clear Information
                 </h4>
 
-                <p className="mt-2 text-sm leading-5 text-slate-800">
+                <p className="mt-2 text-sm leading-6 text-slate-600">
                   Important college information in one place.
                 </p>
 
@@ -397,18 +674,19 @@ export default function Home() {
 
               {/* 02 */}
 
-              <div className="min-h-[170px] rounded-[20px] bg-[#dfeae7] p-4 text-slate-900 shadow-sm">
+              <div className="rounded-2xl bg-slate-50 p-6">
 
-                <p className="text-[2rem] font-bold leading-none text-slate-950">
+                <p className="text-2xl font-bold text-slate-950">
                   02
                 </p>
 
-                <h4 className="mt-4 text-[1.05rem] font-bold text-slate-950">
+                <h4 className="mt-4 font-bold text-slate-950">
                   Easy Comparison
                 </h4>
 
-                <p className="mt-2 text-sm leading-5 text-slate-800">
-                  Compare your options without jumping between websites.
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  Compare your options without jumping between
+                  websites.
                 </p>
 
               </div>
@@ -416,17 +694,17 @@ export default function Home() {
 
               {/* 03 */}
 
-              <div className="min-h-[170px] rounded-[20px] bg-[#dfeae7] p-4 text-slate-900 shadow-sm">
+              <div className="rounded-2xl bg-slate-50 p-6">
 
-                <p className="text-[2rem] font-bold leading-none text-slate-950">
+                <p className="text-2xl font-bold text-slate-950">
                   03
                 </p>
 
-                <h4 className="mt-4 text-[1.05rem] font-bold text-slate-950">
+                <h4 className="mt-4 font-bold text-slate-950">
                   Smarter Discovery
                 </h4>
 
-                <p className="mt-2 text-sm leading-5 text-slate-800">
+                <p className="mt-2 text-sm leading-6 text-slate-600">
                   Find colleges based on your interests and goals.
                 </p>
 
@@ -435,18 +713,19 @@ export default function Home() {
 
               {/* 04 */}
 
-              <div className="min-h-[170px] rounded-[20px] bg-[#dfeae7] p-4 text-slate-900 shadow-sm">
+              <div className="rounded-2xl bg-slate-50 p-6">
 
-                <p className="text-[2rem] font-bold leading-none text-slate-950">
+                <p className="text-2xl font-bold text-slate-950">
                   04
                 </p>
 
-                <h4 className="mt-4 text-[1.05rem] font-bold text-slate-950">
+                <h4 className="mt-4 font-bold text-slate-950">
                   Better Decisions
                 </h4>
 
-                <p className="mt-2 text-sm leading-5 text-slate-800">
-                  Turn scattered information into a clearer decision.
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  Turn scattered information into a clearer
+                  decision.
                 </p>
 
               </div>
@@ -464,20 +743,21 @@ export default function Home() {
       {/* CTA */}
       {/* ================================================= */}
 
-      <section className="bg-[#dfeae7] px-5 py-10 text-slate-900 sm:px-6">
+      <section className="bg-slate-950 px-5 py-20 text-white sm:px-6">
 
         <div className="mx-auto max-w-4xl text-center">
 
-          <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-600">
+          <p className="text-sm font-bold uppercase tracking-[0.2em] text-slate-500">
             Your college journey starts here
           </p>
 
-          <h3 className="mt-4 text-[2.6rem] font-bold tracking-[-0.05em] sm:text-[4rem] sm:leading-[0.95]">
+          <h3 className="mt-4 text-3xl font-bold tracking-tight sm:text-5xl">
             Ready to find your college?
           </h3>
 
-          <p className="mx-auto mt-5 max-w-2xl text-lg leading-7 text-slate-700">
-            Explore your options, compare colleges, and make your next decision with confidence.
+          <p className="mx-auto mt-5 max-w-xl leading-7 text-slate-400">
+            Explore your options, compare colleges, and make
+            your next decision with confidence.
           </p>
 
 
@@ -492,7 +772,7 @@ export default function Home() {
 
             <Link
               href="/predictor"
-              className="rounded-xl border border-slate-700 bg-transparent px-7 py-3.5 text-sm font-bold text-slate-900 transition hover:bg-white/10"
+              className="rounded-xl border border-slate-700 px-7 py-3.5 text-sm font-bold text-white transition hover:bg-slate-900"
             >
               Try College Predictor
             </Link>
@@ -508,27 +788,59 @@ export default function Home() {
       {/* FOOTER */}
       {/* ================================================= */}
 
-      <footer className="bg-[#dfeae7] px-0 py-2 text-slate-700">
+      <footer className="bg-slate-950 px-5 py-10 text-slate-400 sm:px-6">
 
-        <div className="mx-auto flex max-w-[100vw] flex-col gap-2 border-t border-slate-600/80 pt-2 px-5 sm:px-6 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mx-auto flex max-w-7xl flex-col gap-6 border-t border-slate-800 pt-8 sm:flex-row sm:items-center sm:justify-between">
 
-          <div className="flex items-center gap-2.5">
+          <div>
 
-            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-900 text-xs font-bold text-white">
-              N
-            </div>
-
-            <p className="text-[1.4rem] font-bold leading-none text-slate-950">
+            <p className="font-bold text-white">
               CollegeIQ
             </p>
 
-            <p className="text-xs text-slate-700">
-              Compare. Decide.
+            <p className="mt-1 text-sm">
+              Find. Compare. Decide.
             </p>
 
           </div>
 
-          <p className="text-center text-sm text-slate-700 sm:text-left">
+
+          <div className="flex flex-wrap gap-5 text-sm">
+
+            <Link
+              href="/colleges"
+              className="transition hover:text-white"
+            >
+              Discover
+            </Link>
+
+            <Link
+              href="/compare"
+              className="transition hover:text-white"
+            >
+              Compare
+            </Link>
+
+            <Link
+              href="/predictor"
+              className="transition hover:text-white"
+            >
+              Predictor
+            </Link>
+
+            {user && (
+              <Link
+                href="/profile"
+                className="transition hover:text-white"
+              >
+                Profile
+              </Link>
+            )}
+
+          </div>
+
+
+          <p className="text-sm">
             © 2026 CollegeIQ · Built by Aditi Jindal
           </p>
 
