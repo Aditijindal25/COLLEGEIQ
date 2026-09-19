@@ -7,21 +7,21 @@ import { useParams } from "next/navigation";
 import { getCollegeLocation, getCollegeSearchUrl, getDegreeLabel, getPlacementLabel } from "@/lib/collegeDisplay";
 
 type Course = {
-  id: number;
+  id: string;
   name: string;
   duration: string;
   degree: string;
 };
 
 type Review = {
-  id: number;
+  id: string;
   author: string;
   rating: number;
   comment: string;
 };
 
 type College = {
-  id: number;
+  id: string;
   name: string;
   location: string;
   state: string;

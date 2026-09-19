@@ -1,27 +1,20 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import { ObjectId } from "mongodb";
 import { prisma } from "@/lib/prisma";
 
 export async function GET() {
   try {
     const cookieStore = await cookies();
-
     const cookie = cookieStore.get("collegeiq_user");
 
     if (!cookie?.value) {
-      return NextResponse.json(
-        { user: null },
-        { status: 200 }
-      );
+      return NextResponse.json({ user: null }, { status: 200 });
     }
 
-    const userId = Number(cookie.value);
-
-    if (!Number.isInteger(userId) || userId <= 0) {
-      return NextResponse.json(
-        { user: null },
-        { status: 200 }
-      );
+    const userId = cookie.value.trim();
+    if (!userId || !ObjectId.isValid(userId)) {
+      return NextResponse.json({ user: null }, { status: 200 });
     }
 
     const user = await prisma.user.findUnique({
@@ -37,15 +30,10 @@ export async function GET() {
     });
 
     if (!user) {
-      return NextResponse.json(
-        { user: null },
-        { status: 200 }
-      );
+      return NextResponse.json({ user: null }, { status: 200 });
     }
 
-    return NextResponse.json({
-      user,
-    });
+    return NextResponse.json({ user });
   } catch (error) {
     console.error("Get current user error:", error);
 

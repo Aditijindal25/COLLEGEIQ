@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 
 type College = {
-  id: number;
+  id: string;
   name: string;
   location: string;
   state: string;

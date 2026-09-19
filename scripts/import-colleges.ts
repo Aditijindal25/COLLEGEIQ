@@ -1,7 +1,14 @@
-import { readFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
+import path from "node:path";
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
+
+type CourseSeed = {
+  name: string;
+  degree: string;
+  duration: string;
+};
 
 type CollegeRow = {
   name: string;
@@ -17,15 +24,34 @@ type CollegeRow = {
   infrastructureScore?: number;
   placementScore?: number;
   socialLifeScore?: number;
+  nirfRank?: number;
+  nirfScore?: number;
   description: string;
   website?: string;
-  dataSource?: string;
-  courses?: string;
+  dataSource: string;
+  courses: CourseSeed[];
 };
+
+type ImportStats = {
+  filesProcessed: number;
+  rowsScanned: number;
+  validRows: number;
+  skippedRows: number;
+  duplicatesMerged: number;
+  uniqueColleges: number;
+};
+
+function normalizeText(value: string | undefined) {
+  return value ? value.replace(/\u00a0/g, " ").replace(/\s+/g, " ").trim() : "";
+}
+
+function normalizeHeader(value: string | undefined) {
+  return normalizeText(value).toLowerCase();
+}
 
 function parseCsvLine(line: string) {
   const values: string[] = [];
-  let value = "";
+  let current = "";
   let quoted = false;
 
   for (let index = 0; index < line.length; index += 1) {
@@ -33,185 +59,280 @@ function parseCsvLine(line: string) {
     const nextCharacter = line[index + 1];
 
     if (character === '"' && quoted && nextCharacter === '"') {
-      value += '"';
+      current += '"';
       index += 1;
     } else if (character === '"') {
       quoted = !quoted;
     } else if (character === "," && !quoted) {
-      values.push(value.trim());
-      value = "";
+      values.push(current.trim());
+      current = "";
     } else {
-      value += character;
+      current += character;
     }
   }
 
-  values.push(value.trim());
+  values.push(current.trim());
   return values;
 }
 
-function parseAmount(value: string) {
-  return Number(value.replace(/[^0-9.]/g, ""));
-}
-
-function parseOptionalNumber(value: string | undefined) {
-  if (!value || value === "--") return undefined;
-  const parsed = Number(value.replace(/[^0-9.]/g, ""));
+function parseNumber(value: string | undefined) {
+  if (!value) return undefined;
+  const cleaned = normalizeText(String(value)).replace(/[^0-9.\-]/g, "");
+  if (!cleaned || cleaned === "-" || cleaned === ".") return undefined;
+  const parsed = Number(cleaned);
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
-function parseCourses(value: string | undefined, numberOfPrograms: string | undefined) {
-  if (!value?.trim()) return undefined;
+function parseInteger(value: string | undefined) {
+  const parsed = parseNumber(value);
+  if (parsed === undefined) return undefined;
+  return Number.isInteger(parsed) ? parsed : Math.round(parsed);
+}
 
-  const names = value.split(/[;,|]/).map((course) => course.trim()).filter(Boolean);
-  const fallbackCount = parseOptionalNumber(numberOfPrograms);
-  return names.slice(0, fallbackCount || names.length).map((name) => `${name}~Program~`).join("|");
+function parseAmount(value: string | undefined) {
+  const parsed = parseNumber(value);
+  return parsed === undefined ? 0 : Math.round(parsed);
 }
 
 function normalizeRating(value: string | undefined) {
-  const rating = parseOptionalNumber(value);
-  if (rating === undefined) return undefined;
-  return Math.round((rating > 5 ? rating / 2 : rating) * 100) / 100;
+  const parsed = parseNumber(value);
+  if (parsed === undefined) return undefined;
+  const normalized = parsed > 5 ? parsed / 2 : parsed;
+  return Math.round(normalized * 100) / 100;
 }
 
-function parseRows(csv: string): CollegeRow[] {
+function titleCase(value: string | undefined) {
+  const text = normalizeText(value);
+  if (!text) return "";
+  return text.toLowerCase().replace(/\b\w/g, (character) => character.toUpperCase());
+}
+
+function getField(row: Record<string, string>, keys: string[]) {
+  for (const key of keys) {
+    const value = row[normalizeHeader(key)];
+    if (typeof value === "string") {
+      const trimmed = normalizeText(value);
+      if (trimmed) return trimmed;
+    }
+  }
+  return "";
+}
+
+function canonicalizeCollegeKey(name: string, state: string, website?: string) {
+  const rawName = normalizeText(name).toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  const rawState = normalizeText(state).toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  const rawWebsite = normalizeText(website).toLowerCase().replace(/^https?:\/\//, "").replace(/\/$/, "");
+  return `${rawName}|${rawState}|${rawWebsite}`;
+}
+
+function mergeUniqueCourses(courses: CourseSeed[] = []) {
+  const merged = new Map<string, CourseSeed>();
+
+  for (const course of courses) {
+    const key = `${course.name}|${course.degree}|${course.duration}`.toLowerCase();
+    if (!course.name) continue;
+    if (!merged.has(key)) {
+      merged.set(key, {
+        name: normalizeText(course.name),
+        degree: normalizeText(course.degree) || "Program",
+        duration: normalizeText(course.duration) || "4 Years",
+      });
+    }
+  }
+
+  return [...merged.values()];
+}
+
+function parseCourses(rawValue: string | undefined, fallbackDegree = "Program", fallbackDuration = "4 Years") {
+  if (!rawValue) return [];
+
+  return rawValue
+    .split(/[;|,]/)
+    .map((piece) => piece.trim())
+    .filter(Boolean)
+    .slice(0, 20)
+    .flatMap((piece) => {
+      const [name, degree = fallbackDegree, duration = fallbackDuration] = piece.split("~").map((part) => part.trim());
+      const cleanedName = normalizeText(name);
+      if (!cleanedName) return [];
+      return [{
+        name: cleanedName,
+        degree: normalizeText(degree) || fallbackDegree,
+        duration: normalizeText(duration) || fallbackDuration,
+      }];
+    });
+}
+
+function mergeCollegeRows(existing: CollegeRow, candidate: CollegeRow): CollegeRow {
+  const merged: CollegeRow = { ...existing };
+
+  merged.name = normalizeText(merged.name) || normalizeText(candidate.name);
+  merged.location = normalizeText(merged.location) || normalizeText(candidate.location) || merged.state || candidate.state || "Unknown";
+  merged.state = normalizeText(merged.state) || normalizeText(candidate.state) || "Unknown";
+  merged.rating = merged.rating > 0 ? ((merged.rating > candidate.rating) ? merged.rating : candidate.rating) : candidate.rating;
+  merged.fees = merged.fees > 0 ? merged.fees : candidate.fees;
+  merged.pgFees = merged.pgFees && merged.pgFees > 0 ? merged.pgFees : candidate.pgFees ?? merged.pgFees;
+  merged.placement = merged.placement > candidate.placement ? merged.placement : candidate.placement;
+  merged.academicScore = merged.academicScore ?? candidate.academicScore;
+  merged.accommodationScore = merged.accommodationScore ?? candidate.accommodationScore;
+  merged.facultyScore = merged.facultyScore ?? candidate.facultyScore;
+  merged.infrastructureScore = merged.infrastructureScore ?? candidate.infrastructureScore;
+  merged.placementScore = merged.placementScore ?? candidate.placementScore;
+  merged.socialLifeScore = merged.socialLifeScore ?? candidate.socialLifeScore;
+  merged.nirfRank = merged.nirfRank && merged.nirfRank > 0 ? Math.min(merged.nirfRank, candidate.nirfRank ?? merged.nirfRank) : candidate.nirfRank ?? merged.nirfRank;
+  merged.nirfScore = merged.nirfScore && merged.nirfScore > 0 ? Math.max(merged.nirfScore, candidate.nirfScore ?? merged.nirfScore) : candidate.nirfScore ?? merged.nirfScore;
+  merged.description = merged.description && merged.description.length > candidate.description.length ? merged.description : candidate.description || merged.description;
+  merged.website = normalizeText(merged.website) || normalizeText(candidate.website) || undefined;
+  merged.courses = mergeUniqueCourses([...merged.courses, ...candidate.courses]);
+  merged.dataSource = Array.from(new Set([merged.dataSource, candidate.dataSource].filter(Boolean))).join(" | ");
+  return merged;
+}
+
+function compileCollegeRowFromRecord(record: Record<string, string>, source: string): CollegeRow | null {
+  const rawName = getField(record, ["college_name", "college name", "college", "college_name ", "College_Name", "College Name"]);
+  const rawState = getField(record, ["state", "State"]);
+  const rawLocation = getField(record, ["city", "district", "location"]);
+  const rawRating = getField(record, ["rating", "Rating", "collegeiq_score", "review_score_5", "overall_rating"]);
+  const rawFees = getField(record, ["ug_fee_inr", "annual_ug_fee_inr", "UG_fee", "ug_fee", "fees"]);
+  const rawPgFees = getField(record, ["pg_fee_inr", "PG_fee", "pg_fee"]);
+
+  const name = normalizeText(rawName);
+  const state = titleCase(rawState) || "Unknown";
+  const location = titleCase(rawLocation) || state;
+
+  if (!name) {
+    return null;
+  }
+
+  const rating = normalizeRating(rawRating);
+  if (rating === undefined && !rawRating && !(source.toLowerCase().includes("nirf"))) {
+    return null;
+  }
+
+  const row: CollegeRow = {
+    name,
+    location,
+    state,
+    fees: parseAmount(rawFees),
+    pgFees: parseNumber(rawPgFees) ? Math.round(parseNumber(rawPgFees)!) : undefined,
+    rating: rating ?? 0,
+    placement: parseAmount(getField(record, ["average_package_lpa", "average_package", "placement_lpa", "Placement", "placement"])) || 0,
+    academicScore: parseNumber(getField(record, ["academic", "Academic", "academic_score"])),
+    accommodationScore: parseNumber(getField(record, ["accommodation", "Accommodation", "accommodation_score"])),
+    facultyScore: parseNumber(getField(record, ["faculty", "Faculty", "faculty_score"])),
+    infrastructureScore: parseNumber(getField(record, ["infrastructure", "Infrastructure", "infrastructure_score"])),
+    placementScore: parseNumber(getField(record, ["placement_score", "Placement", "placement"])),
+    socialLifeScore: parseNumber(getField(record, ["social_life", "social life", "Social_Life", "social_life_score"])),
+    nirfRank: parseInteger(getField(record, ["nirf_2025_rank", "rank", "Rank"])),
+    nirfScore: parseNumber(getField(record, ["nirf_2025_ss", "ss", "SS"])),
+    description: normalizeText(getField(record, ["college_description", "review_summary", "description", "pros"])) || `College data imported from ${source}.`,
+    website: normalizeText(getField(record, ["official_website", "website", "official website"])) || undefined,
+    dataSource: source,
+    courses: parseCourses(getField(record, ["courses", "courses_offered", "popular_branches", "branch_name", "branch"]), getField(record, ["degree_types", "degree", "degree type"]) || "Program", getField(record, ["course_duration", "duration"]) || "4 Years"),
+  };
+
+  if (source.toLowerCase().includes("nirf")) {
+    row.description = row.description || `NIRF ranked college imported from ${source}.`;
+    row.location = row.location || "Unknown";
+    row.state = row.state || "Unknown";
+  }
+
+  return row;
+}
+
+function parseCsvFile(csv: string, source: string): CollegeRow[] {
   const lines = csv.split(/\r?\n/).filter((line) => line.trim());
   if (lines.length < 2) return [];
 
-  const headers = parseCsvLine(lines[0]);
-  if (headers.includes("college_name") && headers.includes("annual_ug_fee_inr")) {
-    return lines.slice(1).map((line, lineIndex): CollegeRow | null => {
-      const values = parseCsvLine(line);
-      const row = Object.fromEntries(headers.map((header, index) => [header, values[index] ?? ""]));
-      const name = row.college_name?.trim();
-      const state = row.state?.trim();
-      const rating = normalizeRating(row.overall_rating || row.student_review_rating || row.collegeiq_score);
+  const headers = parseCsvLine(lines[0]).map((header) => header.trim());
+  const rows: CollegeRow[] = [];
 
-      if (!name || !state) {
-        console.warn(`Skipping standardized CSV line ${lineIndex + 2}: missing college name or state.`);
-        return null;
-      }
-
-      const courseNames = parseCourses(row.courses_offered || row.popular_branches, row.number_of_programs);
-      const description = row.review_summary?.trim() || `College data record. Verification status: ${row.online_verification_status || "not verified"}.`;
-      return {
-        name,
-        location: row.city?.trim() || row.district?.trim() || state,
-        state,
-        fees: Math.round(parseOptionalNumber(row.annual_ug_fee_inr) || 0),
-        rating: rating || 0,
-        placement: parseOptionalNumber(row.average_package_lpa) || 0,
-        description,
-        website: row.official_website?.trim() || undefined,
-        dataSource: "CollegeIQ_Standardized_Colleges.csv",
-        courses: courseNames,
-      };
-    }).filter((row): row is CollegeRow => row !== null);
-  }
-
-  if (headers.includes("college_name")) {
-    return lines.slice(1).map((line, lineIndex): CollegeRow | null => {
-      const values = parseCsvLine(line);
-      const row = Object.fromEntries(headers.map((header, index) => [header, values[index] ?? ""]));
-      const name = row.college_name?.trim();
-      const state = row.state?.trim();
-      const rating = parseOptionalNumber(row.Rating);
-
-      if (!name || !state || rating === undefined) {
-        console.warn(`Skipping enriched CSV line ${lineIndex + 2}: missing college name, state, or rating.`);
-        return null;
-      }
-
-      const courseNames = (row.courses || "").split(",").map((course: string) => course.trim()).filter(Boolean);
-      return {
-        name,
-        location: row.city?.trim() || state,
-        state,
-        fees: parseOptionalNumber(row.ug_fee_inr) || 0,
-        pgFees: parseOptionalNumber(row.pg_fee_inr),
-        rating: Math.round((rating / 2) * 100) / 100,
-        placement: parseOptionalNumber(row.average_package_lpa) || 0,
-        academicScore: parseOptionalNumber(row.Academic),
-        accommodationScore: parseOptionalNumber(row.Accommodation),
-        facultyScore: parseOptionalNumber(row.Faculty),
-        infrastructureScore: parseOptionalNumber(row.Infrastructure),
-        placementScore: parseOptionalNumber(row.Placement),
-        socialLifeScore: parseOptionalNumber(row.Social_Life),
-        dataSource: row.existing_dataset_source || "CollegeIQ Enriched Master.csv",
-        description: row.college_description?.trim() || `College data record. Verification status: ${row.online_verification_status || "not verified"}.`,
-        website: row.official_website?.trim() || undefined,
-        courses: courseNames.map((course: string) => `${course}~${row.degree_types || "Program"}~${row.course_duration || ""}`).join("|"),
-      };
-    }).filter((row): row is CollegeRow => row !== null);
-  }
-
-  if (headers.includes("College_Name")) {
-    return lines.slice(1).map((line, lineIndex): CollegeRow | null => {
-      const values = parseCsvLine(line);
-      const row = Object.fromEntries(headers.map((header, index) => [header, values[index] ?? ""]));
-      const rating = Number(row.Rating);
-
-      if (!row.College_Name || !row.State || !Number.isFinite(rating)) {
-        console.warn(`Skipping engineering CSV line ${lineIndex + 2}: missing college name, state, or rating.`);
-        return null;
-      }
-
-      return {
-        name: row.College_Name.trim(),
-        state: row.State.trim(),
-        location: row.State.trim(),
-        fees: parseAmount(row.UG_fee),
-        pgFees: parseAmount(row.PG_fee),
-        rating: Math.round((rating / 2) * 100) / 100,
-        placement: 0,
-        academicScore: Number(row.Academic) || undefined,
-        accommodationScore: Number(row.Accommodation) || undefined,
-        facultyScore: Number(row.Faculty) || undefined,
-        infrastructureScore: Number(row.Infrastructure) || undefined,
-        placementScore: Number(row.Placement) || undefined,
-        socialLifeScore: Number(row.Social_Life) || undefined,
-        dataSource: "Indian Engineering Colleges Dataset",
-        description: `Engineering college dataset record. Academic score: ${row.Academic || "not available"}/10; faculty score: ${row.Faculty || "not available"}/10; infrastructure score: ${row.Infrastructure || "not available"}/10; placement score: ${row.Placement || "not available"}/10.`,
-        courses: "Engineering~Engineering~4 Years",
-      };
-    }).filter((row): row is CollegeRow => row !== null);
-  }
-
-  const requiredHeaders = ["name", "location", "state", "fees", "rating", "placement", "description"];
-  const missing = requiredHeaders.filter((header) => !headers.includes(header));
-  if (missing.length) throw new Error(`Missing CSV columns: ${missing.join(", ")}`);
-
-  return lines.slice(1).map((line, lineIndex) => {
+  for (const line of lines.slice(1)) {
     const values = parseCsvLine(line);
-    const row = Object.fromEntries(headers.map((header, index) => [header, values[index] ?? ""]));
-    const parsed = {
-      name: row.name,
-      location: row.location,
-      state: row.state,
-      fees: Number(row.fees),
-      rating: Number(row.rating),
-      placement: Number(row.placement),
-      description: row.description,
-      website: row.website || undefined,
-      courses: row.courses || undefined,
-    };
+    const record: Record<string, string> = {};
 
-    if (!parsed.name || !parsed.location || !parsed.state || !Number.isFinite(parsed.fees) || !Number.isFinite(parsed.rating) || !Number.isFinite(parsed.placement) || !parsed.description) {
-      throw new Error(`Invalid college data on CSV line ${lineIndex + 2}.`);
+    headers.forEach((header, index) => {
+      const key = normalizeHeader(header);
+      if (!key) return;
+      const value = values[index] ?? "";
+      if (!record[key]) {
+        record[key] = value;
+      }
+    });
+
+    const row = compileCollegeRowFromRecord(record, source);
+    if (row) {
+      rows.push(row);
     }
+  }
 
-    return parsed;
-  });
+  return rows;
+}
+
+async function resolveImportSources(explicitPath?: string) {
+  if (explicitPath) {
+    const fullPath = path.resolve(process.cwd(), explicitPath);
+    const resolved = (await readdir(path.dirname(fullPath))).includes(path.basename(fullPath)) ? fullPath : null;
+    if (resolved) return [resolved];
+    return [fullPath];
+  }
+
+  const dataDirectory = path.resolve(process.cwd(), "data");
+  const entries = await readdir(dataDirectory, { withFileTypes: true });
+  const csvFiles = entries
+    .filter((entry) => entry.isFile() && entry.name.toLowerCase().endsWith(".csv"))
+    .map((entry) => path.join(dataDirectory, entry.name))
+    .sort();
+
+  if (!csvFiles.length) {
+    throw new Error("No CSV datasets were found inside the data folder. Add at least one real college dataset before running import:colleges.");
+  }
+
+  return csvFiles;
 }
 
 async function main() {
-  const filePath = process.argv[2] || "data/colleges.csv";
-  const csv = await readFile(filePath, "utf8");
-  const rows = parseRows(csv);
-  let imported = 0;
+  const sourceFiles = await resolveImportSources(process.argv[2]);
+  const merged = new Map<string, CollegeRow>();
+  const stats: ImportStats = {
+    filesProcessed: 0,
+    rowsScanned: 0,
+    validRows: 0,
+    skippedRows: 0,
+    duplicatesMerged: 0,
+    uniqueColleges: 0,
+  };
 
-  for (const row of rows) {
+  for (const filePath of sourceFiles) {
+    const fileName = path.basename(filePath);
+    const csv = await readFile(filePath, "utf8");
+    const rows = parseCsvFile(csv, fileName);
+    stats.filesProcessed += 1;
+    stats.rowsScanned += rows.length;
+
+    for (const row of rows) {
+      const key = canonicalizeCollegeKey(row.name, row.state, row.website);
+      const existing = merged.get(key);
+      if (existing) {
+        merged.set(key, mergeCollegeRows(existing, row));
+        stats.duplicatesMerged += 1;
+      } else {
+        merged.set(key, row);
+      }
+      stats.validRows += 1;
+    }
+  }
+
+  stats.uniqueColleges = merged.size;
+
+  for (const [key, row] of merged) {
     const existing = await prisma.college.findFirst({
-      where: { name: row.name, state: row.state },
+      where: {
+        OR: [
+          { name: row.name, state: row.state },
+          ...(row.website ? [{ website: row.website }] : []),
+        ],
+      },
       select: { id: true },
     });
 
@@ -232,6 +353,8 @@ async function main() {
             infrastructureScore: row.infrastructureScore,
             placementScore: row.placementScore,
             socialLifeScore: row.socialLifeScore,
+            nirfRank: row.nirfRank,
+            nirfScore: row.nirfScore,
             dataSource: row.dataSource,
             description: row.description,
             website: row.website,
@@ -252,26 +375,41 @@ async function main() {
             infrastructureScore: row.infrastructureScore,
             placementScore: row.placementScore,
             socialLifeScore: row.socialLifeScore,
+            nirfRank: row.nirfRank,
+            nirfScore: row.nirfScore,
             dataSource: row.dataSource,
             description: row.description,
             website: row.website,
           },
         });
 
-    if (row.courses) {
-      const courses = row.courses.split("|").map((course) => {
-        const [name, degree = "", duration = ""] = course.split("~").map((part) => part.trim());
-        return { name, degree, duration };
-      }).filter((course) => course.name);
+    await prisma.course.deleteMany({
+      where: { collegeId: college.id },
+    });
 
-      await prisma.course.deleteMany({ where: { collegeId: college.id } });
-      if (courses.length) await prisma.course.createMany({ data: courses.map((course) => ({ ...course, collegeId: college.id })) });
+    if (row.courses.length) {
+      await prisma.course.createMany({
+        data: row.courses.map((course) => ({
+          name: course.name,
+          degree: course.degree,
+          duration: course.duration,
+          collegeId: college.id,
+        })),
+      });
     }
-
-    imported += 1;
   }
 
-  console.log(`Imported or updated ${imported} colleges from ${filePath}.`);
+  console.log(JSON.stringify({
+    filesProcessed: stats.filesProcessed,
+    rowsScanned: stats.rowsScanned,
+    validRows: stats.validRows,
+    duplicatesMerged: stats.duplicatesMerged,
+    uniqueColleges: stats.uniqueColleges,
+    skippedRows: stats.skippedRows,
+    sources: sourceFiles.map((file) => path.basename(file)),
+  }, null, 2));
+
+  console.log(`Imported and merged ${stats.uniqueColleges} unique colleges into MongoDB.`);
 }
 
 main()
@@ -279,4 +417,6 @@ main()
     console.error(error instanceof Error ? error.message : error);
     process.exitCode = 1;
   })
-  .finally(() => prisma.$disconnect());
+  .finally(async () => {
+    await prisma.$disconnect();
+  });

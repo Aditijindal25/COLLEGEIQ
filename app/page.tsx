@@ -10,14 +10,14 @@ import GoalLauncher from "@/components/GoalLauncher";
 import { formatCurrency, formatRating, getCollegeLocation, getPlacementLabel } from "@/lib/collegeDisplay";
 
 type User = {
-  id: number;
+  id: string;
   name: string;
   email: string;
   createdAt: string;
 };
 
 type College = {
-  id: number;
+  id: string;
   name: string;
   location: string;
   state: string;
@@ -27,7 +27,7 @@ type College = {
   description?: string;
   website?: string;
   courses?: {
-    id: number;
+    id: string;
     name: string;
     duration: string;
     degree: string;

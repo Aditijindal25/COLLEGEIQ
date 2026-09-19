@@ -6,12 +6,18 @@ import { useSearchParams } from "next/navigation";
 import SiteNav from "@/components/SiteNav";
 import { formatCurrency, formatRating, getCollegeLocation, getDegreeLabel, getPlacementLabel } from "@/lib/collegeDisplay";
 
-type Course = { id: number; name: string; degree: string; duration: string };
-type College = { id: number; name: string; location: string; state: string; fees: number; rating: number; placement: number; website?: string; courses: Course[] };
+type Course = { id: string; name: string; degree: string; duration: string };
+type College = { id: string; name: string; location: string; state: string; fees: number; rating: number; placement: number; website?: string; courses: Course[] };
 type SortOption = "relevance" | "rating" | "placement" | "feesLow" | "feesHigh" | "name";
 const PAGE_SIZE = 12;
 
-function readIds(value: string | null) { return (value || "").split(",").map(Number).filter((id) => Number.isInteger(id) && id > 0).slice(0, 3); }
+function readIds(value: string | null) {
+  return (value || "")
+    .split(",")
+    .map((id) => id.trim())
+    .filter((id) => id.length > 0)
+    .slice(0, 3);
+}
 
 function bestId(colleges: College[], metric: "rating" | "placement" | "fees") {
   const available = colleges.filter((college) => metric === "fees" ? college.fees > 0 : college[metric] > 0);
@@ -21,13 +27,13 @@ function bestId(colleges: College[], metric: "rating" | "placement" | "fees") {
     const current = available.find((item) => item.id === best);
     if (!current) return college.id;
     return metric === "fees" ? college.fees < current.fees ? college.id : best : college[metric] > current[metric] ? college.id : best;
-  }, null as number | null);
+  }, null as string | null);
 }
 
 function ComparePageContent() {
   const searchParams = useSearchParams();
   const [colleges, setColleges] = useState<College[]>([]);
-  const [selectedIds, setSelectedIds] = useState<number[]>(() => readIds(searchParams.get("ids")));
+  const [selectedIds, setSelectedIds] = useState<string[]>(() => readIds(searchParams.get("ids")));
   const [query, setQuery] = useState("");
   const [stateFilter, setStateFilter] = useState("all");
   const [locationFilter, setLocationFilter] = useState("all");
@@ -65,7 +71,7 @@ function ComparePageContent() {
   const bestPlacement = bestId(selectedColleges, "placement");
   const bestFees = bestId(selectedColleges, "fees");
 
-  function toggleCollege(id: number) { setSelectedIds((current) => current.includes(id) ? current.filter((collegeId) => collegeId !== id) : current.length < 3 ? [...current, id] : current); }
+  function toggleCollege(id: string) { setSelectedIds((current) => current.includes(id) ? current.filter((collegeId) => collegeId !== id) : current.length < 3 ? [...current, id] : current); }
   function clearFilters() { setQuery(""); setStateFilter("all"); setLocationFilter("all"); setRatingFilter("all"); setFeesFilter("all"); setPlacementFilter("all"); setCourseFilter("all"); setSort("relevance"); }
   function updateFilter<T>(setter: (value: T) => void, value: T) { setter(value); setPage(1); }
 

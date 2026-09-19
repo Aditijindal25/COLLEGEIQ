@@ -6,10 +6,10 @@ import { useParams, useRouter } from "next/navigation";
 import SiteNav from "@/components/SiteNav";
 import { formatCurrency, formatRating, getCollegeLocation, getCollegeSearchUrl, getDegreeLabel, getPlacementLabel } from "@/lib/collegeDisplay";
 
-type Course = { id: number; name: string; degree?: string; duration?: string };
-type Review = { id: number; author: string; rating: number; comment: string };
+type Course = { id: string; name: string; degree?: string; duration?: string };
+type Review = { id: string; author: string; rating: number; comment: string };
 type CollegeDetailsData = {
-  id: number;
+  id: string;
   name: string;
   location: string;
   state: string;
@@ -68,7 +68,7 @@ export default function CollegeDetails() {
         const savedResponse = await fetch("/api/saved-colleges", { cache: "no-store" });
         if (savedResponse.ok) {
           const savedColleges = await savedResponse.json();
-          setSaved(savedColleges.some((item: { id: number }) => item.id === foundCollege.id));
+          setSaved(savedColleges.some((item: { id: string }) => item.id === foundCollege.id));
         }
       } catch (error) {
         console.error("Failed to load college:", error);

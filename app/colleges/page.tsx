@@ -29,8 +29,8 @@ export default function CollegesPage() {
     const savedLens = window.localStorage.getItem("collegeiq-fit-lens");
     return savedLens === "balanced" || savedLens === "value" || savedLens === "career" ? savedLens : "balanced";
   });
-  const [savedIds, setSavedIds] = useState<number[]>([]);
-  const [compareIds, setCompareIds] = useState<number[]>([]);
+  const [savedIds, setSavedIds] = useState<string[]>([]);
+  const [compareIds, setCompareIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -117,7 +117,7 @@ export default function CollegesPage() {
     setPage(1);
   }
 
-  async function toggleSave(collegeId: number) {
+  async function toggleSave(collegeId: string) {
     const saved = savedIds.includes(collegeId);
     const response = await fetch("/api/saved-colleges", {
       method: saved ? "DELETE" : "POST",
@@ -135,7 +135,7 @@ export default function CollegesPage() {
     }
   }
 
-  function toggleCompare(collegeId: number) {
+  function toggleCompare(collegeId: string) {
     setCompareIds((current) => {
       if (current.includes(collegeId)) return current.filter((id) => id !== collegeId);
       return current.length < 3 ? [...current, collegeId] : current;

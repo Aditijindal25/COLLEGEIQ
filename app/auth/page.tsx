@@ -150,7 +150,7 @@ export default function AuthPage() {
         error?: string;
         message?: string;
         user?: {
-          id: number;
+          id: string;
           name: string;
           email: string;
         };

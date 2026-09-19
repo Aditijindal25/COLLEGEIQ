@@ -7,14 +7,14 @@ import { useRouter } from "next/navigation";
 import SiteNav from "@/components/SiteNav";
 
 type User = {
-  id: number;
+  id: string;
   name: string;
   email: string;
   createdAt: string;
 };
 
 type SavedCollege = {
-  id: number;
+  id: string;
   name: string;
   location: string;
   state: string;

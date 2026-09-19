@@ -1,12 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import { ObjectId } from "mongodb";
 import { prisma } from "@/lib/prisma";
 
-async function getUserId() {
+async function getUserId(): Promise<string | null> {
   const cookieStore = await cookies();
-  const value = cookieStore.get("collegeiq_user")?.value;
-  const userId = Number(value);
-  return Number.isInteger(userId) && userId > 0 ? userId : null;
+  const value = cookieStore.get("collegeiq_user")?.value?.trim();
+
+  if (!value || !ObjectId.isValid(value)) {
+    return null;
+  }
+
+  return value;
 }
 
 export async function GET() {
@@ -19,7 +24,7 @@ export async function GET() {
   const saved = await prisma.savedCollege.findMany({
     where: { userId },
     include: { college: { include: { courses: true } } },
-    orderBy: { id: "desc" },
+    orderBy: { createdAt: "desc" },
   });
 
   return NextResponse.json(saved.map((item) => item.college));
@@ -33,7 +38,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   }
 
-  if (!Number.isInteger(collegeId)) {
+  if (typeof collegeId !== "string" || !ObjectId.isValid(collegeId)) {
     return NextResponse.json({ error: "A valid college is required." }, { status: 400 });
   }
 
@@ -52,6 +57,10 @@ export async function DELETE(request: NextRequest) {
 
   if (!userId) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+  }
+
+  if (typeof collegeId !== "string" || !ObjectId.isValid(collegeId)) {
+    return NextResponse.json({ error: "A valid college is required." }, { status: 400 });
   }
 
   await prisma.savedCollege.deleteMany({

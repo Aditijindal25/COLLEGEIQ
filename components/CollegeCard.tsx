@@ -2,7 +2,7 @@ import Link from "next/link";
 import { formatCurrency, formatRating, getCollegeLocation, getDegreeLabel, getPlacementLabel } from "@/lib/collegeDisplay";
 
 export type CollegeCardData = {
-  id: number;
+  id: string;
   name: string;
   location: string;
   state: string;
@@ -14,16 +14,16 @@ export type CollegeCardData = {
   facultyScore?: number;
   infrastructureScore?: number;
   placementScore?: number;
-  courses?: { id: number; name: string; degree: string; duration: string }[];
+  courses?: { id: string; name: string; degree: string; duration: string }[];
   description?: string | null;
 };
 
 type CollegeCardProps = {
   college: CollegeCardData;
-  onSave?: (collegeId: number) => void;
+  onSave?: (collegeId: string) => void;
   saved?: boolean;
   matchScore?: number;
-  onCompare?: (collegeId: number) => void;
+  onCompare?: (collegeId: string) => void;
   comparing?: boolean;
 };
 

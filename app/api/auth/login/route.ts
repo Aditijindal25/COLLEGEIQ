@@ -46,29 +46,28 @@ export async function POST(request: NextRequest) {
     }
 
     // Login successful
-    // Login successful
-const response = NextResponse.json(
-  {
-    success: true,
-    message: "Login successful.",
-    user: {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-    },
-  },
-  { status: 200 }
-);
+    const response = NextResponse.json(
+      {
+        success: true,
+        message: "Login successful.",
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+        },
+      },
+      { status: 200 }
+    );
 
-response.cookies.set("collegeiq_user", String(user.id), {
-  httpOnly: true,
-  sameSite: "lax",
-  secure: process.env.NODE_ENV === "production",
-  path: "/",
-  maxAge: 60 * 60 * 24 * 7,
-});
+    response.cookies.set("collegeiq_user", user.id, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 7,
+    });
 
-return response;
+    return response;
 
   } catch (error) {
     console.error("LOGIN ERROR:", error);
